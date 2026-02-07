@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Door outline logo (white), based on provided reference. -->
+  <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Door frame (right) -->
+    <path d="M178 34 H222 V222 H178"/>
+
+    <!-- Door leaf (open) -->
+    <path d="M178 52 L70 92 V196 L178 222"/>
+
+    <!-- Inner edge of door -->
+    <path d="M178 52 V222"/>
+
+    <!-- Knob -->
+    <circle cx="118" cy="150" r="10"/>
+  </g>
+</svg>

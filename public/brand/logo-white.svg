@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- SSEPA logo (white): door outline, inspired by provided reference -->
+  <g stroke="#FFFFFF" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- door frame -->
+    <path d="M160 32 H224 V224 H160" />
+    <!-- open door panel -->
+    <path d="M64 64 L160 40 V216 L64 192 Z" />
+    <!-- inner edge line -->
+    <path d="M160 40 V216" />
+    <!-- knob -->
+    <circle cx="120" cy="128" r="10" />
+  </g>
+</svg>

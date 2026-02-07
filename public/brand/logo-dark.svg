@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- SSEPA logo (dark): door outline for light backgrounds -->
+  <g stroke="#243757" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M160 32 H224 V224 H160" />
+    <path d="M64 64 L160 40 V216 L64 192 Z" />
+    <path d="M160 40 V216" />
+    <circle cx="120" cy="128" r="10" />
+  </g>
+</svg>

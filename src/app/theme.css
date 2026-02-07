@@ -1,0 +1,268 @@
+:root {
+  --ssepa-navy: #466365;
+  --ssepa-teal: #466365;
+  --ssepa-sand: #DAD5B7;
+  --ssepa-khaki: #C2B79B;
+  --ssepa-brown: #665E52;
+
+  --ssepa-bg: #fbfbf9;
+  --ssepa-text: #466365;
+
+  --ssepa-topbar: #466365;
+  --ssepa-accent: #466365;
+  --ssepa-accent-contrast: #ffffff;
+
+  /* SEEU-like app layout */
+  --ssepa-app-bg: color-mix(in oklab, var(--ssepa-sand) 18%, white);
+  --ssepa-workarea-bg: color-mix(in oklab, var(--ssepa-sand) 12%, white);
+  --ssepa-container-max: 1480px;
+
+  /* slightly warm surfaces to avoid stark white */
+  --ssepa-surface: #ffffff;
+  --ssepa-surface-2: #f6f5ef;
+  --ssepa-border: #bcbdbc;
+}
+
+.ssepa-app {
+  min-height: 100vh;
+  background: var(--ssepa-app-bg);
+  color: var(--ssepa-text);
+}
+
+/* Default border color across the app (keeps alert borders intact because utilities are more specific) */
+:where(.ssepa-app) :where(*, *::before, *::after) {
+  border-color: var(--ssepa-border);
+}
+
+/* Normalize “black-ish” text utilities to the SSEPA ink color */
+
+/* Tree-style details (+/-) */
+/* Works both when .ssepa-tree is a wrapper OR the <details> itself */
+:where(.ssepa-tree) details > summary::-webkit-details-marker,
+:where(details.ssepa-tree) > summary::-webkit-details-marker {
+  display: none;
+}
+
+:where(.ssepa-tree) details > summary::marker,
+:where(details.ssepa-tree) > summary::marker {
+  content: "";
+}
+
+:where(.ssepa-tree) details > summary,
+:where(details.ssepa-tree) > summary {
+  position: relative;
+}
+
+/* Toggle (+/-) is a dedicated span so hover can be independent */
+:where(.ssepa-tree) details > summary .ssepa-tree-toggle,
+:where(details.ssepa-tree) > summary .ssepa-tree-toggle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+}
+
+:where(.ssepa-tree) details > summary .ssepa-tree-toggle::before,
+:where(details.ssepa-tree) > summary .ssepa-tree-toggle::before {
+  content: "+";
+  display: block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border: 1px solid var(--ssepa-border);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ssepa-text);
+  font-size: 12px;
+}
+
+:where(.ssepa-tree) details[open] > summary .ssepa-tree-toggle::before,
+:where(details.ssepa-tree[open]) > summary .ssepa-tree-toggle::before {
+  content: "−";
+}
+
+:where(.ssepa-tree) details > summary .ssepa-tree-toggle:hover::before,
+:where(details.ssepa-tree) > summary .ssepa-tree-toggle:hover::before {
+  border-color: var(--ssepa-accent);
+  background: rgba(70, 99, 101, 0.08);
+}
+
+/* Label hover is independent from toggle hover */
+:where(.ssepa-tree) details > summary .ssepa-tree-label:hover,
+:where(details.ssepa-tree) > summary .ssepa-tree-label:hover {
+  text-decoration: underline;
+}
+:where(.ssepa-app)
+  :where(
+    .text-black,
+    .text-zinc-950,
+    .text-zinc-900,
+    .text-zinc-800,
+    .text-zinc-700
+  ) {
+  color: var(--ssepa-text);
+}
+
+.ssepa-workarea {
+  background: var(--ssepa-workarea-bg);
+  min-height: calc(100vh - 64px);
+}
+
+.ssepa-shell {
+  width: 100%;
+  max-width: var(--ssepa-container-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ssepa-sidebar {
+  width: 340px;
+  flex: 0 0 340px;
+  padding: 20px 0 20px 28px;
+  transition: width 160ms ease, flex-basis 160ms ease;
+}
+
+.ssepa-sidebar.is-collapsed {
+  width: 32px;
+  flex-basis: 32px;
+  padding: 12px 0 12px 8px;
+}
+
+.ssepa-sidebar.is-collapsed .ssepa-sidebar-inner {
+  padding: 0;
+  border-right: none;
+}
+
+.ssepa-sidebar-tab {
+  display: none;
+}
+
+.ssepa-sidebar.is-collapsed .ssepa-sidebar-tab {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--ssepa-topbar) 65%, black);
+  background: var(--ssepa-topbar);
+  border-radius: 8px;
+}
+
+.ssepa-sidebar-tab-lines {
+  display: grid;
+  gap: 3px;
+}
+
+.ssepa-sidebar-tab-lines > span {
+  display: block;
+  width: 12px;
+  height: 2px;
+  background: color-mix(in oklab, white 88%, var(--ssepa-topbar));
+  border-radius: 999px;
+  opacity: 0.95;
+}
+
+.ssepa-sidebar.is-collapsed .ssepa-sidebar-tab:hover {
+  filter: brightness(1.03);
+  border-color: color-mix(in oklab, white 35%, var(--ssepa-topbar));
+}
+
+.ssepa-sidebar.is-collapsed .ssepa-sidebar-body {
+  display: none;
+}
+
+.ssepa-sidebar-inner {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 92px);
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid color-mix(in oklab, var(--ssepa-border) 70%, transparent);
+}
+
+.ssepa-container {
+  width: 100%;
+  padding: 20px 28px;
+}
+
+.ssepa-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ssepa-topbar);
+  color: white;
+  border-bottom: 1px solid color-mix(in oklab, var(--ssepa-navy) 70%, black);
+}
+
+.ssepa-btn {
+  background: var(--ssepa-accent);
+  color: var(--ssepa-accent-contrast);
+}
+
+.ssepa-btn:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+
+/* Botões neutros (border) — dar mais realce no hover */
+.ssepa-app a.rounded.border:hover,
+.ssepa-app button.rounded.border:hover {
+  background: color-mix(in oklab, var(--ssepa-accent) 10%, white);
+  border-color: color-mix(in oklab, var(--ssepa-accent) 35%, var(--ssepa-border));
+}
+
+.ssepa-link {
+  color: var(--ssepa-accent);
+}
+
+.ssepa-card {
+  background: var(--ssepa-surface);
+  border: 1px solid var(--ssepa-border);
+}
+
+.ssepa-card-muted {
+  background: color-mix(in oklab, var(--ssepa-sand) 18%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ssepa-khaki) 35%, transparent);
+}
+
+/* Common UI primitives (SEEU-like) */
+.ssepa-panel {
+  background: var(--ssepa-surface);
+  border: 1px solid var(--ssepa-border);
+}
+
+.ssepa-panel-header {
+  background: var(--ssepa-surface-2);
+  border-bottom: 1px solid var(--ssepa-border);
+}
+
+.ssepa-muted {
+  color: color-mix(in oklab, var(--ssepa-brown) 65%, black);
+}
+
+.ssepa-table-head {
+  background: var(--ssepa-surface-2);
+}
+
+.ssepa-section {
+  border: 1px solid var(--ssepa-border);
+  border-radius: 0.75rem;
+  background: var(--ssepa-surface);
+  overflow: hidden;
+}
+
+.ssepa-section + .ssepa-section {
+  margin-top: 1rem;
+}
+
+.ssepa-section-tab {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ssepa-border);
+  background: color-mix(in oklab, var(--ssepa-surface-2) 60%, white);
+  text-decoration: underline;
+}

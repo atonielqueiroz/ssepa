@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Moonwalk";
+  src: url("/fonts/Moonwalk.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--ssepa-bg);
+  color: var(--ssepa-text);
+}
+
+.brand {
+  font-family: "Moonwalk", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  letter-spacing: 0.02em;
+}

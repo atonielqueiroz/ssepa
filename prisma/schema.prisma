@@ -1,0 +1,996 @@
+// SSEPA - Prisma schema v1 (draft)
+// Target DB: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------
+// Enums
+// -----------------------------
+
+enum RoleKey {
+  USER
+  MODERATOR
+  ADMIN
+  SUPERADMIN
+}
+
+enum AccountStatus {
+  RASCUNHO
+  ENVIADO
+  APROVADO
+  INDEFERIDO
+  SUSPENSO
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum Theme {
+  BLUE
+  GRAY
+  LIGHT_GREEN
+  BEIGE
+}
+
+enum ReeducandoGender {
+  MASCULINO
+  FEMININO
+  OUTRO
+}
+
+enum TermsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReferenceStatus {
+  ACTIVE
+  DELETED
+}
+
+enum EventType {
+  PRISAO_INGRESSO
+  SOLTURA_ALVARA
+  FUGA_EVASAO
+  RECAPTURA
+  FALTA_GRAVE_FATO
+  PRISAO_PENA_TRANSITO_JULGADO
+  UNIFICACAO_PENAS
+  OUTRO
+}
+
+enum IncidenteType {
+  REMICAO
+  HOMOLOGACAO_FALTA_GRAVE
+  FIXACAO_ALTERACAO_REGIME
+  OUTRO
+}
+
+enum RemicaoStatus {
+  HOMOLOGADA
+  NAO_HOMOLOGADA
+}
+
+enum ProcessoEventoType {
+  PRISAO_FLAGRANTE
+  PRISAO_PREVENTIVA
+  PRISAO_TEMPORARIA
+  PRISAO_TJ_INICIO_CUMPRIMENTO
+
+  SOLTURA_ALVARA
+
+  // Liberdade/relaxamento/revogação
+  LIBERDADE_SEM_CAUTELAR
+  LIBERDADE_COM_CAUTELAR
+
+  // legado (mantido para não quebrar dados antigos)
+  LIBERDADE_PROVISORIA
+
+  // Derivados de decisões (sentença/acórdão/HC etc.)
+  DECISAO_CESSA_CUSTODIA
+  DECISAO_MANTEM_RESTRICAO
+
+  // Cautelares (linha do tempo)
+  CAUTELAR_INICIO
+  CAUTELAR_FIM
+
+  FUGA
+  RECAPTURA
+  OUTRO
+}
+
+enum CautelarType {
+  COMPARECIMENTO_PERIODICO
+  PROIBICAO_LUGARES
+  PROIBICAO_CONTATO
+  PROIBICAO_AUSENTAR_COMARCA
+  RECOLHIMENTO_NOTURNO
+  SUSPENSAO_FUNCAO
+  INTERNACAO_PROVISORIA
+  FIANCA
+  MONITORACAO_ELETRONICA
+  OUTRA
+}
+
+enum RecorrerLiberdadeOption {
+  SIM
+  NAO
+}
+
+enum CautelaresAposSentencaOption {
+  CESSAM
+  MANTIDAS
+}
+
+enum DecisionType {
+  SENTENCA
+  APELACAO
+  RESP
+  RE
+  REVISAO_CRIMINAL
+  HC
+  OUTRO
+}
+
+enum ExecRegime {
+  FECHADO
+  SEMIABERTO
+  ABERTO
+}
+
+enum ExecSituacao {
+  // fechado
+  PRESO
+  FORAGIDO
+  SUSPENSA_AGUARDANDO_CAPTURA
+
+  // semiaberto/aberto
+  CUMPRINDO
+  AGUARDANDO_INICIO
+
+  // todos
+  OUTRO
+}
+
+enum CrimeStatus {
+  ATIVO
+  SUSPENSO
+  EXTINTO
+}
+
+enum CrimeNature {
+  COMUM
+  HEDIONDO
+  EQUIPARADO
+}
+
+enum EquiparadoType {
+  TORTURA
+  TRAFICO
+  TERRORISMO
+}
+
+enum Art112ChoiceMode {
+  AUTO
+  MANUAL
+}
+
+enum CrimeChangeOp {
+  UPSERT
+  DELETE
+}
+
+enum JurisTheme {
+  DATA_BASE
+  DATA_BASE_UNIFICACAO
+  FALTA_GRAVE
+  EFEITOS_FALTA_GRAVE
+  HEDIONDO_NO_TEMPO
+  ART112_NO_TEMPO
+  REINCIDENCIA
+  OUTRO
+}
+
+enum JurisStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum RuleType {
+  BASE_DATE_SELECTION
+  UNIFICATION_EFFECT_ON_BASE_DATE
+  FAULT_GRAVE_EFFECTS
+  RECIDIVISM_DETECTION
+  ART112_FRACTION
+  OUTRO
+}
+
+// -----------------------------
+// Auth.js-compatible tables (minimal)
+// -----------------------------
+
+model User {
+  id                     String        @id @default(cuid())
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  status                 UserStatus    @default(ACTIVE)
+  accountStatus          AccountStatus @default(APROVADO)
+  accountStatusReason    String?
+  accountStatusUpdatedAt DateTime?
+  accountStatusUpdatedBy String?
+
+  name             String
+  oabNumber        String?
+  oabUf            String?
+  phone            String?
+  googleEnabled    Boolean   @default(false)
+  profilePhotoUrl  String?
+  email            String    @unique
+  recoveryEmail    String?
+  emailVerifiedAt  DateTime?
+  profileCompleted Boolean   @default(false)
+
+  // Credentials auth
+  passwordHash String?
+
+  // Preferences
+  theme Theme @default(BLUE)
+
+  // UI prefs
+  feedbackWidgetDismissedUntil DateTime?
+  accounts                     Account[]
+  sessions                     Session[]
+
+  roles UserRole[]
+
+  termsAcceptances TermsAcceptance[]
+
+  references       Reference[]
+  auditLogsActor   AuditLog[]        @relation("AuditActor")
+  auditLogsTarget  AuditLog[]        @relation("AuditTarget")
+  feedbackMessages FeedbackMessage[]
+  reminderNotes    ReminderNote[]
+
+  tasks     Task[]
+  taskNotes TaskNote[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// -----------------------------
+// RBAC
+// -----------------------------
+
+model Role {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  key         RoleKey @unique
+  name        String
+  description String?
+
+  users UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId           String
+  roleId           String
+  assignedByUserId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+// -----------------------------
+// Terms
+// -----------------------------
+
+model TermsVersion {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  status   TermsStatus @default(DRAFT)
+  version  Int
+  title    String
+  text     String
+  textHash String
+
+  acceptances TermsAcceptance[]
+
+  @@unique([version])
+}
+
+model TermsAcceptance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId     String
+  termsId    String
+  acceptedAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  terms TermsVersion @relation(fields: [termsId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([termsId])
+}
+
+// -----------------------------
+// Core domain
+// -----------------------------
+
+model Reference {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  status ReferenceStatus @default(ACTIVE)
+
+  // Display
+  execNumber         String? // "Execução Penal nº ..." (nullable if semExecucaoFormada)
+  semExecucaoFormada Boolean @default(false)
+  title              String // computed/display title, e.g., execNumber or "Sem execução formada"
+
+  // Ordering/archiving (Mesa do Advogado)
+  activeOrder   BigInt?
+  archivedOrder BigInt?
+  archivedAt    DateTime?
+
+  court   String?
+  city    String?
+  stateUf String?
+  notes   String?
+
+  // Imported/public info (e.g. SEEU consulta pública)
+  executadoNome                 String?
+  executadoNascimento           DateTime?
+  executadoNascimentoSourceText String?
+  classeProcessual              String?
+  assuntoPrincipal              String?
+  nivelSigilo                   String?
+  diasTramitacao                Int?
+  autuacaoAt                    DateTime?
+  distribuicaoAt                DateTime?
+  competencia                   String?
+  juizo                         String?
+  juiz                          String?
+
+  // Perfil do reeducando (MVP)
+  reeducandoGender                       ReeducandoGender?
+  reeducandaGestante                     Boolean           @default(false)
+  reeducandaMaeOuResponsavelCriancaOuPcd Boolean           @default(false)
+
+  // Intercorrências relevantes (MVP)
+  novoCrimeDoloso Boolean @default(false)
+
+  // Progressão especial (art. 112, §3º–§4º, LEP — Lei 13.769/2018)
+  progEspecial112_3_enabled                            Boolean @default(false)
+  progEspecial112_3_req_I_semViolencia                 Boolean @default(false)
+  progEspecial112_3_req_II_naoCrimeContraFilho         Boolean @default(false)
+  progEspecial112_3_req_III_cumpriuUmOitavoRegAnterior Boolean @default(false)
+  progEspecial112_3_req_IV_primariaBomComport          Boolean @default(false)
+  progEspecial112_3_req_V_naoOrgCrim                   Boolean @default(false)
+
+  // Status da execução penal (LOCAL CERTO: Execução/Simulação)
+  execRegime               ExecRegime?
+  execSituacao             ExecSituacao?
+  execMarkerMonitorado     Boolean       @default(false)
+  execMarkerRecolhido      Boolean       @default(false)
+  execMarkerSoltoCumprindo Boolean       @default(false)
+  execObservacao           String?
+  execDestacar             Boolean       @default(false)
+
+  // Data-base para progressão (manual, com sugestão automática)
+  baseDateProgressaoAt         DateTime?
+  baseDateProgressaoSourceText String?
+
+  // Pena cumprida na data-base (para cálculo SEEU: (pena imposta - pena cumprida) * fração)
+  basePenaCumpridaDays       Int?
+  basePenaCumpridaSourceText String?
+
+  // Source citation (optional structured)
+  source Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  processos   ProcessoCriminal[]
+  events      ReferenceEvent[]
+  calcRuns    CalcRun[]
+  incidentes  Incidente[]
+  attachments Attachment[]
+
+  @@index([userId])
+  @@index([activeOrder])
+  @@index([archivedOrder])
+  @@index([archivedAt])
+}
+
+model ProcessoCriminal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referenceId String
+  number      String // Processo Criminal nº
+
+  // Sentença como porta de entrada (libera recursos após primeiro salvamento)
+  sentencaSaved Boolean @default(false)
+
+  // Incluir/excluir processo dos cálculos/simulações (sem precisar apagar)
+  includeInCalculations Boolean @default(true)
+
+  // Marcos relevantes (prescrição/relatórios)
+  denunciaRecebidaAt DateTime?
+  sentencaAt         DateTime?
+
+  // Data-base do processo (data do(s) fato(s))
+  fatosBaseAt     DateTime?
+  fatosBaseNaoSei Boolean   @default(false)
+
+  // Primariedade / reincidência (por processo/condenação)
+  reincidenciaMode   ReincidenciaMode    @default(AUTO)
+  reincidenciaStatus ReincidenciaStatus?
+
+  // Sentença: regime inicial e recorrer em liberdade (reflexo em detração)
+  regimeInicialFixado    ExecRegime?
+  recorrerEmLiberdade    RecorrerLiberdadeOption?
+  cautelaresAposSentenca CautelaresAposSentencaOption?
+  acordaoAt              DateTime?
+  respAt                 DateTime?
+  reAt                   DateTime?
+  transitAtProcesso      DateTime?
+  transitAtAcusacao      DateTime?
+  transitAtDefesa        DateTime?
+  juizoVaraCondenacao    String?
+
+  // Fonte nos autos por marco (MVP: objeto com chaves -> texto)
+  marcosSource Json?
+
+  // Status da execução penal (legado no processo; exibição agora fica na Execução/Simulação)
+  execRegime               ExecRegime?
+  execSituacao             ExecSituacao?
+  execMarkerMonitorado     Boolean       @default(false)
+  execMarkerRecolhido      Boolean       @default(false)
+  execMarkerSoltoCumprindo Boolean       @default(false)
+  execObservacao           String?
+  execDestacar             Boolean       @default(false)
+
+  notes  String?
+  source Json?
+
+  reference Reference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+
+  // Base crimes (sentença) live here. Higher decisions are deltas.
+  crimes      Crime[]
+  decisions   Decision[]
+  eventos     ProcessoEvento[]
+  attachments Attachment[]
+
+  @@index([referenceId])
+  @@index([number])
+}
+
+enum ReincidenciaMode {
+  AUTO
+  MANUAL
+}
+
+enum ReincidenciaStatus {
+  PRIMARIO
+  REINCIDENTE
+}
+
+enum NoteColor {
+  AMARELO
+  VERDE
+  VERMELHO
+  BRANCO
+  AZUL
+}
+
+enum NoteEntityType {
+  SIMULACOES_LIST
+  SIMULACAO
+  PROCESSO
+  INCIDENTES
+  EVENTOS
+}
+
+model ReminderNote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId     String
+  entityType NoteEntityType
+  entityId   String
+
+  color NoteColor @default(AMARELO)
+  text  String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+model Crime {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  processoId String
+
+  // Identification
+  law         String
+  article     String
+  description String?
+  complement  String?
+
+  // Dates and penalty
+  factDate      DateTime?
+  penaltyYears  Int
+  penaltyMonths Int
+  penaltyDays   Int
+  transitDate   DateTime
+
+  // Flags (all required Sim/Não)
+  hasViolence    Boolean
+  // Deprecated in favor of "nature" (kept for compatibility)
+  isHediondo     Boolean
+  hasResultDeath Boolean
+  hasOrgCrimLead Boolean
+  hasMilicia     Boolean
+  isFeminicidio  Boolean
+
+  // Legal nature classification (for leigos / explicação)
+  nature         CrimeNature     @default(COMUM)
+  equiparadoType EquiparadoType?
+
+  // Art. 112 selection/override (to handle ambiguity)
+  art112ChoiceMode Art112ChoiceMode @default(AUTO)
+  art112Inciso     String?
+  art112Summary    String?
+  art112Basis      Json?
+
+  // Execution status
+  status         CrimeStatus @default(ATIVO)
+  suspendedAt    DateTime?
+  suspendedNotes String?
+  extinctAt      DateTime?
+  extinctNotes   String?
+
+  // Source citation
+  source Json?
+
+  processo    ProcessoCriminal @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([processoId])
+  @@index([factDate])
+}
+
+model Decision {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  processoId String
+
+  type         DecisionType
+  // Sorting within same type
+  decisionDate DateTime
+
+  // Metadata
+  tribunal      String?
+  number        String?
+  publicationAt DateTime?
+  transitAt     DateTime?
+
+  notes  String?
+  source Json?
+
+  // Deltas
+  crimeChanges CrimeChange[]
+  attachments  Attachment[]
+
+  processo ProcessoCriminal @relation(fields: [processoId], references: [id], onDelete: Cascade)
+
+  @@index([processoId])
+  @@index([type, decisionDate])
+}
+
+model CrimeChange {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  decisionId String
+  op         CrimeChangeOp
+
+  // When op=UPSERT, either points to a base crime or creates a new one
+  baseCrimeId String?
+
+  // Only changed fields should be present; consumers apply as patch.
+  fields Json
+
+  decision Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@index([decisionId])
+  @@index([baseCrimeId])
+}
+
+model ProcessoEvento {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  processoId String
+  type       ProcessoEventoType
+  eventDate  DateTime
+  motivo     String?
+
+  // Medidas cautelares (quando aplicável)
+  cautelarTypes     Json?
+  cautelarOtherText String?
+  cautelarStart     DateTime?
+  cautelarEnd       DateTime?
+
+  // Se marcado, o sistema NÃO computa este evento/período na detração
+  noDetraction Boolean @default(false)
+
+  // fonte nos autos
+  source Json?
+
+  processo    ProcessoCriminal @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([processoId])
+  @@index([type, eventDate])
+}
+
+model Incidente {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referenceId String
+
+  // SEEU-like
+  numero        String? // nº do incidente (quando houver)
+  type          IncidenteType
+  complemento   String?
+  referenceDate DateTime
+  autuacaoAt    DateTime?
+
+  // Remição
+  remicaoDias   Int?
+  remicaoStatus RemicaoStatus?
+
+  // Falta grave (perda por fração, até 1/3)
+  faltaGraveFracNum Int?
+  faltaGraveFracDen Int?
+
+  // fonte nos autos
+  source Json?
+
+  reference   Reference    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([referenceId])
+  @@index([type, referenceDate])
+}
+
+model ReferenceEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referenceId String
+
+  type          EventType
+  complemento   String?
+  referenceDate DateTime
+  status        String? // e.g., ATIVO
+
+  notes  String?
+  source Json?
+
+  reference   Reference    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([referenceId])
+  @@index([type, referenceDate])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  filename  String
+  mimeType  String
+  sizeBytes Int?
+
+  // Storage pointer (S3, local, etc.)
+  storageKey String
+
+  // Optional associations (keep simple; avoid polymorphic joins)
+  referenceId      String?
+  processoId       String?
+  crimeId          String?
+  eventId          String?
+  processoEventoId String?
+  decisionId       String?
+  incidenteId      String?
+  calcRunId        String?
+
+  notes String?
+
+  reference      Reference?        @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  processo       ProcessoCriminal? @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  crime          Crime?            @relation(fields: [crimeId], references: [id], onDelete: Cascade)
+  event          ReferenceEvent?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  processoEvento ProcessoEvento?   @relation(fields: [processoEventoId], references: [id], onDelete: Cascade)
+  decision       Decision?         @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  incidente      Incidente?        @relation(fields: [incidenteId], references: [id], onDelete: Cascade)
+  calcRun        CalcRun?          @relation(fields: [calcRunId], references: [id], onDelete: Cascade)
+
+  @@index([referenceId])
+  @@index([processoId])
+  @@index([crimeId])
+  @@index([eventId])
+  @@index([processoEventoId])
+  @@index([decisionId])
+  @@index([incidenteId])
+  @@index([calcRunId])
+}
+
+model CalcRun {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  referenceId String
+  name        String?
+
+  // Inputs/outputs snapshots for reproducibility
+  inputs  Json
+  outputs Json
+
+  // Applied theses/rules snapshots
+  appliedTeses Json?
+  appliedRules Json?
+
+  notes String?
+
+  reference   Reference    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([referenceId])
+}
+
+// -----------------------------
+// Admin: Jurisprudence / rules
+// -----------------------------
+
+model JurisTese {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  theme   JurisTheme
+  status  JurisStatus @default(DRAFT)
+  version Int
+
+  title       String
+  explanation String
+  ementaText  String
+
+  // Optional: array of copy-ready snippets
+  highlights   Json?
+  // tribunal, classe, numero, relator, orgao, datas, links...
+  references   Json?
+  isBeneficial Boolean @default(false)
+
+  rules JurisRule[]
+
+  @@unique([theme, version])
+  @@index([theme])
+}
+
+model JurisRule {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  teseId   String
+  ruleType RuleType
+  priority Int      @default(100)
+  params   Json
+
+  tese JurisTese @relation(fields: [teseId], references: [id], onDelete: Cascade)
+
+  @@index([teseId])
+  @@index([ruleType])
+}
+
+// -----------------------------
+// Audit
+// -----------------------------
+
+model FeedbackMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String?
+  anonymous Boolean @default(false)
+
+  version    String
+  screenKey  String
+  route      String
+  occurredAt DateTime
+
+  message String
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([screenKey])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  actorUserId  String
+  targetUserId String?
+
+  action   String
+  metadata Json?
+
+  ip        String?
+  userAgent String?
+
+  actor  User  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+enum PasswordSetupTokenPurpose {
+  SUPERADMIN_BOOTSTRAP
+  ADMIN_INVITE
+}
+
+model PasswordSetupToken {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  purpose         PasswordSetupTokenPurpose
+  createdByUserId String?
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+// -----------------------------
+// SSEPA Tasks (interno)
+// -----------------------------
+
+enum TaskStatus {
+  OPEN
+  DONE
+  ARCHIVED
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  title  String
+  summary String?
+  status TaskStatus @default(OPEN)
+
+  // Ordering / timeline
+  openOrder     BigInt? // menor = mais no topo (tipicamente -Date.now())
+  doneOrder     BigInt?
+  archivedOrder BigInt?
+
+  completedAt DateTime?
+  archivedAt  DateTime?
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes TaskNote[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([updatedAt])
+  @@index([openOrder])
+  @@index([doneOrder])
+  @@index([archivedOrder])
+}
+
+model TaskNote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String
+  userId String
+  text   String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+}
