@@ -225,11 +225,11 @@ export function SentenceInfoEditor({ processoId }: { processoId: string }) {
     return `${day}/${m}/${y}`;
   }
 
-  function renderInlineField(label: string, value: ReactNode, note?: InlineNote) {
+  function renderInlineField(label: string, value: ReactNode, note?: InlineNote, valueClassName?: string) {
     return (
       <div className="mt-2 text-sm text-zinc-900">
         <span className="font-semibold">{label}:</span>
-        <span className="ml-1">{value}</span>
+        <span className={["ml-1", valueClassName].filter(Boolean).join(" ")}>{value}</span>
         {note?.text ? (
           <div className={"mt-1 text-xs " + (note.highlight ? "text-red-700" : "text-zinc-600")}>
             Nota: {note.text}
@@ -293,13 +293,52 @@ export function SentenceInfoEditor({ processoId }: { processoId: string }) {
 
   const isSentencaEditing = editKey === "SENTENCA";
   const regimeDisplayText = f.regimeInicialFixado === "FECHADO" ? "Fechado" : f.regimeInicialFixado === "SEMIABERTO" ? "Semiaberto" : f.regimeInicialFixado === "ABERTO" ? "Aberto" : "Não informado";
-  const recorrerDisplayText = recorrerSuggested
-    ? recorrerSuggested === "SIM_SEM"
-      ? "Sugestão: Sim, sem cautelares"
-      : recorrerSuggested === "SIM_COM"
-        ? "Sugestão: Sim, com cautelares"
-        : "Sugestão: Não (mantida prisão)"
-    : "Sugestão indisponível: faltam datas para comparação. Você pode selecionar manualmente.";
+  const dispositivoDisplayValue = f.dispositivoSentenca ? (
+    <span className={`inline-flex w-full flex-wrap items-center rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm leading-snug ${f.dispositivoSentencaDestacar ? "text-red-700" : "text-zinc-700"}`}>
+      {f.dispositivoSentenca}
+    </span>
+  ) : "—";
+  const concedidoRecorrerText = f.recorrerEmLiberdade === "SIM" ? "Sim" : f.recorrerEmLiberdade === "NAO" ? "Não" : "—";
+  const renderRecorrerEvent = () => {
+    if (!estadoNaData || !f.sentencaAt || !recorrerChoice) return null;
+    const dateBR = f.sentencaAt.split("-").reverse().join("/");
+
+    const real = estadoNaData;
+    const intended =
+      recorrerChoice === "SIM_SEM"
+        ? "SOLTO"
+        : recorrerChoice === "SIM_COM"
+          ? "CAUTELAR_ATIVA"
+          : "PRESO";
+
+    if (real === intended || (real === "DOMICILIAR" && intended === "CAUTELAR_ATIVA")) {
+      return <div className="text-xs text-emerald-700">Compatível com os registros.</div>;
+    }
+
+    let evento = null;
+
+    if (real === "PRESO" && intended === "SOLTO") evento = "Soltura (fim detração / início interrupção)";
+    else if (real === "PRESO" && intended === "CAUTELAR_ATIVA") evento = "Prisão → cautelar ativa";
+    else if (real === "SOLTO" && intended === "PRESO") evento = "Ordem de prisão (início detração)";
+    else if (real === "SOLTO" && intended === "CAUTELAR_ATIVA") evento = "Início de cautelares (detração por cautelar)";
+    else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "SOLTO") evento = "Revogação cautelar / soltura (fim detração / início interrupção)";
+    else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "PRESO") evento = "Ordem/decretação de prisão (cautelar → prisão)";
+    else evento = "Ajustar eventos de custódia/cautelar";
+
+    return (
+      <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        Sua seleção indica mudança do status de liberdade. Para refletir isso na linha do tempo, registre um evento em {dateBR}.
+        <div className="mt-1">
+          <span className="font-medium">Evento sugerido:</span> {evento}.
+        </div>
+        <div className="mt-2">
+          <a className="rounded border border-amber-300 bg-white px-2 py-1 text-[11px]" href={`/referencias/${referenceId}/processos/${processoId}/eventos`}>
+            Ir para Eventos
+          </a>
+        </div>
+      </div>
+    );
+  };
 
   const reincSuggestionText = reincSuggested
     ? reincSuggested === "PRIMARIO"
@@ -326,109 +365,98 @@ export function SentenceInfoEditor({ processoId }: { processoId: string }) {
           <div className="space-y-2">
             {isGeneralEditing ? (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    className="rounded border px-3 py-2"
-                    type="date"
-                    value={f.fatosBaseAt}
-                    disabled={f.fatosBaseNaoSei}
-                    onChange={(e) => setF((prev) => ({ ...prev, fatosBaseAt: e.target.value }))}
-                  />
-                  <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <div>
+                  <div className="text-sm font-semibold text-zinc-700">Data dos fatos:</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
                     <input
-                      type="checkbox"
-                      checked={f.fatosBaseNaoSei}
-                      onChange={(e) =>
-                        setF((prev) => ({
-                          ...prev,
-                          fatosBaseNaoSei: e.target.checked,
-                          fatosBaseAt: e.target.checked ? "" : prev.fatosBaseAt,
-                        }))
-                      }
+                      className="rounded border px-3 py-2"
+                      type="date"
+                      value={f.fatosBaseAt}
+                      disabled={f.fatosBaseNaoSei}
+                      onChange={(e) => setF((prev) => ({ ...prev, fatosBaseAt: e.target.value }))}
                     />
-                    Não sei
-                  </label>
-                </div>
-
-                {f.fatosBaseNaoSei ? (
-                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                    Atenção: sem a data dos fatos, o SSEPA terá limitações. Isso pode dificultar a análise de direitos e impedir o auxílio do sistema no enquadramento dos percentuais para progressão de regime e livramento condicional.
+                    <label className="flex items-center gap-2 text-sm text-zinc-700">
+                      <input
+                        type="checkbox"
+                        checked={f.fatosBaseNaoSei}
+                        onChange={(e) =>
+                          setF((prev) => ({
+                            ...prev,
+                            fatosBaseNaoSei: e.target.checked,
+                            fatosBaseAt: e.target.checked ? "" : prev.fatosBaseAt,
+                          }))
+                        }
+                      />
+                      Não sei
+                    </label>
                   </div>
-                ) : null}
 
-
+                  {f.fatosBaseNaoSei ? (
+                    <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                      Atenção: sem a data dos fatos, o SSEPA terá limitações. Isso pode dificultar a análise de direitos e impedir o auxílio do sistema no enquadramento dos percentuais para progressão de regime e livramento condicional.
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <div className="mt-2">
-                {renderInlineField("Data do(s) fato(s)", f.fatosBaseNaoSei ? "Não sei" : f.fatosBaseAt ? fmt(f.fatosBaseAt) : "—")}
+                {renderInlineField("Data do(s) fato(s)", f.fatosBaseNaoSei ? "Não sei" : f.fatosBaseAt ? fmt(f.fatosBaseAt) : "—", undefined, "ssepa-highlight-value")}
               </div>
             )}
           </div>
-
-          <div className="rounded border border-zinc-200 bg-zinc-50 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-medium text-zinc-700">Primariedade / Reincidência (Sugestão)*</div>
-            </div>
-
-            {isGeneralEditing ? (
-              <div className="space-y-3">
-                <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="reinc_status" checked={reincStatus === "PRIMARIO"} onChange={() => setReincStatus("PRIMARIO")} /> Primário
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="reinc_status" checked={reincStatus === "REINCIDENTE"} onChange={() => setReincStatus("REINCIDENTE")} /> Reincidente
-                  </label>
-                </div>
-
-                <div className="text-xs text-zinc-600">{reincSuggestionText}</div>
-                {reincEspHed ? (
-                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                    Há condenação anterior por hediondo/equiparado com trânsito anterior ao fato desta condenação.
-                  </div>
-                ) : null}
-
-
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                {renderInlineField("Situação", reincDisplay)}
-                <div className="text-xs text-zinc-600">{reincSuggestionText}</div>
-                {reincEspHed ? (
-                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                    Há condenação anterior por hediondo/equiparado com trânsito anterior ao fato desta condenação.
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-
           <div className="space-y-2">
-
             {isGeneralEditing ? (
-              <div className="space-y-3">
-                <input
-                  className="w-full rounded border px-3 py-2"
-                  type="date"
-                  value={f.denunciaRecebidaAt}
-                  onChange={(e) => setF((prev) => ({ ...prev, denunciaRecebidaAt: e.target.value }))}
-                />
-                <NotesField
-                  label="Notas"
-                  value={f.notasDenuncia}
-                  onChange={(v) => setF((prev) => ({ ...prev, notasDenuncia: v }))}
-                  placeholder="Notas nos autos (mov/seq/pág.)"
-                  destacar={f.notasDenunciaDestacar}
-                  onToggleDestacar={(v) => setF((prev) => ({ ...prev, notasDenunciaDestacar: v }))}
-                  minRows={2}
-                />
+              <>
+                <div className="rounded border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-zinc-700">Primariedade / Reincidência (Sugestão)*</div>
+                  </div>
 
+                  <div className="space-y-3">
+                    <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input type="radio" name="reinc_status" checked={reincStatus === "PRIMARIO"} onChange={() => setReincStatus("PRIMARIO")} /> Primário
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="radio" name="reinc_status" checked={reincStatus === "REINCIDENTE"} onChange={() => setReincStatus("REINCIDENTE")} /> Reincidente
+                      </label>
+                    </div>
 
-              </div>
+                    <div className="text-xs text-zinc-600">{reincSuggestionText}</div>
+                    {reincEspHed ? (
+                      <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                        Há condenação anterior por hediondo/equiparado com trânsito anterior ao fato desta condenação.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-sm font-semibold text-zinc-700">Data do recebimento da Denúncia/Queixa:</div>
+                    <input
+                      className="w-full rounded border px-3 py-2"
+                      type="date"
+                      value={f.denunciaRecebidaAt}
+                      onChange={(e) => setF((prev) => ({ ...prev, denunciaRecebidaAt: e.target.value }))}
+                    />
+                  </div>
+                  <NotesField
+                    label="Notas"
+                    value={f.notasDenuncia}
+                    onChange={(v) => setF((prev) => ({ ...prev, notasDenuncia: v }))}
+                    placeholder="Notas nos autos (mov/seq/pág.)"
+                    destacar={f.notasDenunciaDestacar}
+                    onToggleDestacar={(v) => setF((prev) => ({ ...prev, notasDenunciaDestacar: v }))}
+                    minRows={2}
+                  />
+                </div>
+              </>
             ) : (
-              <div className="mt-2">
+              <div className="space-y-3">
+                {renderInlineField("Primariedade / Reincidência", reincDisplay, { text: reincSuggestionText })}
                 {renderInlineField(
-                  "Recebimento da denúncia/queixa",
+                  "Data do recebimento da Denúncia/Queixa",
                   fmt(f.denunciaRecebidaAt),
                   f.notasDenuncia ? { text: `“${f.notasDenuncia}”`, highlight: f.notasDenunciaDestacar } : undefined
                 )}
@@ -523,208 +551,74 @@ export function SentenceInfoEditor({ processoId }: { processoId: string }) {
                   f.sentencaAt ? fmt(f.sentencaAt) : "—",
                   f.notasSentenca ? { text: `“${f.notasSentenca}”`, highlight: f.notasSentencaDestacar } : undefined
                 )}
-                {f.dispositivoSentenca ? (
-                  <div className={"rounded border bg-zinc-50 p-2 text-xs " + (f.dispositivoSentencaDestacar ? "text-red-700" : "text-zinc-700") }>
-                    {f.dispositivoSentenca}
-                  </div>
-                ) : null}
+                {renderInlineField("Dispositivo da Sentença", dispositivoDisplayValue)}
               </div>
             )}
           </div>
 
           {isSentencaEditing ? (
-          <div className="rounded border border-zinc-200 bg-zinc-50 p-3 space-y-3">
-            <div className="text-sm font-medium text-zinc-700">Sentença — regime inicial e recorrer em liberdade</div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium">Regime inicial fixado</label>
-                <select className="mt-1 w-full rounded border bg-white px-3 py-2" value={f.regimeInicialFixado} onChange={(e) => setF((prev) => ({ ...prev, regimeInicialFixado: e.target.value as any }))}>
-                  <option value="">Não informado</option>
-                  <option value="FECHADO">Fechado</option>
-                  <option value="SEMIABERTO">Semiaberto</option>
-                  <option value="ABERTO">Aberto</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="text-sm font-medium">Recorrer em liberdade (Sugestão)*</div>
-                <div className="mt-1 text-xs text-zinc-600">
-                  {f.sentencaAt && estadoNaData ? (
-                    <>Dos registros de prisões, solturas e cautelares informados, consta que na data da sentença ({f.sentencaAt.split("-").reverse().join("/")}) o executado estava: {estadoNaData === "PRESO" ? "Preso" : estadoNaData === "SOLTO" ? "Solto" : estadoNaData === "DOMICILIAR" ? "Em prisão domiciliar" : "Com medida cautelar ativa"}.</>
-                  ) : (
-                    <>Dos registros de prisões, solturas e cautelares informados, consta que na data da sentença (—) o executado estava: —.</>
-                  )}
+            <div className="rounded border border-zinc-200 bg-zinc-50 p-3 space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium">Regime inicial fixado</label>
+                  <select className="mt-1 w-full rounded border bg-white px-3 py-2" value={f.regimeInicialFixado} onChange={(e) => setF((prev) => ({ ...prev, regimeInicialFixado: e.target.value as any }))}>
+                    <option value="">Não informado</option>
+                    <option value="FECHADO">Fechado</option>
+                    <option value="SEMIABERTO">Semiaberto</option>
+                    <option value="ABERTO">Aberto</option>
+                  </select>
                 </div>
 
-                <div className="mt-2 grid gap-2 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="recorrer" checked={recorrerChoice === "SIM_SEM"} onChange={() => setRecorrerChoice("SIM_SEM")} />
-                    Sim, sem cautelares
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="recorrer" checked={recorrerChoice === "SIM_COM"} onChange={() => setRecorrerChoice("SIM_COM")} />
-                    Sim, com cautelares
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="recorrer" checked={recorrerChoice === "NAO_MANTIDA"} onChange={() => setRecorrerChoice("NAO_MANTIDA")} />
-                    Não (mantida prisão)
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="recorrer" checked={recorrerChoice === "NAO_ORDEM"} onChange={() => setRecorrerChoice("NAO_ORDEM")} />
-                    Não (ordem de prisão)
-                  </label>
-                </div>
-
-                <div className="mt-2 text-xs text-zinc-600">
-                  {recorrerSuggested ? (
-                    <>Sugestão: {recorrerSuggested === "SIM_SEM" ? "Sim, sem cautelares" : recorrerSuggested === "SIM_COM" ? "Sim, com cautelares" : "Não (mantida prisão)"}</>
-                  ) : (
-                    <>Sugestão indisponível: faltam datas para comparação. Você pode selecionar manualmente.</>
-                  )}
-                </div>
-
-                {(() => {
-                  if (!estadoNaData || !f.sentencaAt || !recorrerChoice) return null;
-                  const dateBR = f.sentencaAt.split("-").reverse().join("/");
-
-                  const real = estadoNaData;
-                  const intended =
-                    recorrerChoice === "SIM_SEM"
-                      ? "SOLTO"
-                      : recorrerChoice === "SIM_COM"
-                        ? "CAUTELAR_ATIVA"
-                        : "PRESO";
-
-                  if (real === intended || (real === "DOMICILIAR" && intended === "CAUTELAR_ATIVA")) {
-                    return <div className="text-xs text-emerald-700">Compatível com os registros.</div>;
-                  }
-
-                  let evento = null;
-
-                  if (real === "PRESO" && intended === "SOLTO") evento = "Soltura (fim detração / início interrupção)";
-                  else if (real === "PRESO" && intended === "CAUTELAR_ATIVA") evento = "Prisão → cautelar ativa";
-                  else if (real === "SOLTO" && intended === "PRESO") evento = "Ordem de prisão (início detração)";
-                  else if (real === "SOLTO" && intended === "CAUTELAR_ATIVA") evento = "Início de cautelares (detração por cautelar)";
-                  else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "SOLTO") {
-                    evento = "Revogação cautelar / soltura (fim detração / início interrupção)";
-                  } else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "PRESO") {
-                    evento = "Ordem/decretação de prisão (cautelar → prisão)";
-                  } else {
-                    evento = "Ajustar eventos de custódia/cautelar";
-                  }
-
-                  return (
-                    <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                      Sua seleção indica mudança do status de liberdade. Para refletir isso na linha do tempo, registre um evento em {dateBR}.
-                      <div className="mt-1">
-                        <span className="font-medium">Evento sugerido:</span> {evento}.
-                      </div>
-                      <div className="mt-2">
-                        <a className="rounded border border-amber-300 bg-white px-2 py-1 text-[11px]" href={`/referencias/${referenceId}/processos/${processoId}/eventos`}>
-                          Ir para Eventos
-                        </a>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-          </div>
-
-          ) : (
-          <div className="rounded border border-zinc-200 bg-zinc-50 p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-zinc-700">Sentença — regime inicial e recorrer em liberdade</div>
-              <button type="button" className={editLinkClass} onClick={() => setEditKey((prev) => (prev === "SENTENCA" ? null : "SENTENCA"))}>
-                Editar
-              </button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {renderInlineField("Regime inicial fixado", regimeDisplayText)}
-              {renderInlineField("Recorrer em liberdade (Sugestão)*", recorrerDisplayText)}
-              {(() => {
-                if (!estadoNaData || !f.sentencaAt || !recorrerChoice) return null;
-                const dateBR = f.sentencaAt.split("-").reverse().join("/");
-                const real = estadoNaData;
-                const intended =
-                  recorrerChoice === "SIM_SEM"
-                    ? "SOLTO"
-                    : recorrerChoice === "SIM_COM"
-                      ? "CAUTELAR_ATIVA"
-                      : "PRESO";
-                if (real === intended || (real === "DOMICILIAR" && intended === "CAUTELAR_ATIVA")) {
-                  return <div className="text-xs text-emerald-700">Compatível com os registros.</div>;
-                }
-                let evento = null;
-                if (real === "PRESO" && intended === "SOLTO") evento = "Soltura (fim detração / início interrupção)";
-                else if (real === "PRESO" && intended === "CAUTELAR_ATIVA") evento = "Prisão → cautelar ativa";
-                else if (real === "SOLTO" && intended === "PRESO") evento = "Ordem de prisão (início detração)";
-                else if (real === "SOLTO" && intended === "CAUTELAR_ATIVA") evento = "Início de cautelares (detração por cautelar)";
-                else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "SOLTO") evento = "Revogação cautelar / soltura (fim detração / início interrupção)";
-                else if ((real === "CAUTELAR_ATIVA" || real === "DOMICILIAR") && intended === "PRESO") evento = "Ordem/decretação de prisão (cautelar → prisão)";
-                else evento = "Ajustar eventos de custódia/cautelar";
-                return (
-                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                    Sua seleção indica mudança do status de liberdade. Para refletir isso na linha do tempo, registre um evento em {dateBR}.
-                    <div className="mt-1">
-                      <span className="font-medium">Evento sugerido:</span> {evento}.
-                    </div>
-                    <div className="mt-2">
-                      <a className="rounded border border-amber-300 bg-white px-2 py-1 text-[11px]" href={`/referencias/${referenceId}/processos/${processoId}/eventos`}>
-                        Ir para Eventos
-                      </a>
-                    </div>
+                <div className="md:col-span-2 space-y-3">
+                  <div className="text-sm font-medium">Recorrer em liberdade (Sugestão)*</div>
+                  <div className="mt-1 text-xs text-zinc-600">
+                    {f.sentencaAt && estadoNaData ? (
+                      <>Dos registros de prisões, solturas e cautelares informados, consta que na data da sentença ({f.sentencaAt.split("-").reverse().join("/")}) o executado estava: {estadoNaData === "PRESO" ? "Preso" : estadoNaData === "SOLTO" ? "Solto" : estadoNaData === "DOMICILIAR" ? "Em prisão domiciliar" : "Com medida cautelar ativa"}.</>
+                    ) : (
+                      <>Dos registros de prisões, solturas e cautelares informados, consta que na data da sentença (—) o executado estava: —.</>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
-          </div>          )}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-zinc-700">Data da Sentença</div>
-            </div>
 
-            {editKey === "SENTENCA" ? (
-              <div className="space-y-3">
-                <input
-                  className="w-full rounded border px-3 py-2"
-                  type="date"
-                  value={f.sentencaAt}
-                  onChange={(e) => setF((prev) => ({ ...prev, sentencaAt: e.target.value }))}
-                />
+                  <div className="mt-2 grid gap-2 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="recorrer" checked={recorrerChoice === "SIM_SEM"} onChange={() => setRecorrerChoice("SIM_SEM")} />
+                      Sim, sem cautelares
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="recorrer" checked={recorrerChoice === "SIM_COM"} onChange={() => setRecorrerChoice("SIM_COM")} />
+                      Sim, com cautelares
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="recorrer" checked={recorrerChoice === "NAO_MANTIDA"} onChange={() => setRecorrerChoice("NAO_MANTIDA")} />
+                      Não (mantida prisão)
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="recorrer" checked={recorrerChoice === "NAO_ORDEM"} onChange={() => setRecorrerChoice("NAO_ORDEM")} />
+                      Não (ordem de prisão)
+                    </label>
+                  </div>
 
-                <NotesField
-                  label="Notas"
-                  value={f.notasSentenca}
-                  onChange={(v) => setF((prev) => ({ ...prev, notasSentenca: v }))}
-                  placeholder="Notas nos autos (mov/seq/pág.)"
-                  destacar={f.notasSentencaDestacar}
-                  onToggleDestacar={(v) => setF((prev) => ({ ...prev, notasSentencaDestacar: v }))}
-                  minRows={2}
-                />
+                  <div className="mt-2 text-xs text-zinc-600">
+                    {recorrerSuggested ? (
+                      <>Sugestão: {recorrerSuggested === "SIM_SEM" ? "Sim, sem cautelares" : recorrerSuggested === "SIM_COM" ? "Sim, com cautelares" : "Não (mantida prisão)"}</>
+                    ) : (
+                      <>Sugestão indisponível: faltam datas para comparação. Você pode selecionar manualmente.</>
+                    )}
+                  </div>
 
-
+                  {renderRecorrerEvent()}
+                </div>
               </div>
-            ) : (
-              renderInlineField(
-                "Data da Sentença",
-                fmt(f.sentencaAt),
-                f.notasSentenca ? { text: `“${f.notasSentenca}”`, highlight: f.notasSentencaDestacar } : undefined
-              )
-            )}
-        {isSentencaEditing ? (
-          <div className="mt-3 flex gap-3">
-            <button type="button" className={actionLinkClass} onClick={save} disabled={saving}>
-              {saving ? "Salvando…" : "Salvar"}
-            </button>
-          </div>
-        ) : null}
-          </div>
+            </div>
+          ) : (
+            <div className="rounded border border-zinc-200 bg-zinc-50 p-3 space-y-2">
+              {renderInlineField("Regime inicial fixado", regimeDisplayText)}
+              {renderInlineField("Concedido Direito Recorrer em liberdade", concedidoRecorrerText)}
+              {renderRecorrerEvent()}
+            </div>
+          )}
         </div>
       </section>
-
       {!sentencaSaved ? (
         <div className="mt-3 text-xs text-amber-900">
           Salve as informações da sentença (mesmo incompleta) para liberar os recursos.
