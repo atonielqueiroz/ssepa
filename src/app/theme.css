@@ -1,15 +1,15 @@
 :root {
-  --ssepa-navy: #466365;
-  --ssepa-teal: #466365;
-  --ssepa-sand: #DAD5B7;
-  --ssepa-khaki: #C2B79B;
-  --ssepa-brown: #665E52;
+  --ssepa-navy: #2a4544;
+  --ssepa-teal: #2a4544;
+  --ssepa-sand: #ced9d8;
+  --ssepa-khaki: #ced9d8;
+  --ssepa-brown: #2a4544;
 
-  --ssepa-bg: #fbfbf9;
-  --ssepa-text: #466365;
+  --ssepa-bg: #faf9f5;
+  --ssepa-text: #2a4544;
 
-  --ssepa-topbar: #466365;
-  --ssepa-accent: #466365;
+  --ssepa-topbar: #2a4544;
+  --ssepa-accent: #2a4544;
   --ssepa-accent-contrast: #ffffff;
 
   /* SEEU-like app layout */
@@ -19,8 +19,8 @@
 
   /* slightly warm surfaces to avoid stark white */
   --ssepa-surface: #ffffff;
-  --ssepa-surface-2: #f6f5ef;
-  --ssepa-border: #bcbdbc;
+  --ssepa-surface-2: #f3f2ee;
+  --ssepa-border: #b9c2c1;
 }
 
 .ssepa-app {

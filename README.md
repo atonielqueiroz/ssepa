@@ -16,6 +16,45 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Internal preview on a VPS (no domain required)
+
+Use this setup to share a private preview by IP only (e.g., `http://SEU_IP:3001`) without pointing DNS.
+
+1) **SSH into the VPS and clone the repo**
+
+```bash
+git clone <repo-url>
+cd ssepa
+```
+
+2) **Install dependencies**
+
+```bash
+npm install
+```
+
+3) **Configure environment variables**
+
+Create a `.env` file with the database URL used by Prisma:
+
+```bash
+cat <<'EOF' > .env
+DATABASE_URL="file:./dev.db"
+EOF
+```
+
+4) **Run the app on a private port**
+
+```bash
+npm run dev -- --hostname 0.0.0.0 --port 3001
+```
+
+5) **Open the preview by IP**
+
+Access `http://SEU_IP:3001` in the browser.
+
+> Optional: If your VPS firewall blocks the port, allow it (example: `ufw allow 3001`).
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
