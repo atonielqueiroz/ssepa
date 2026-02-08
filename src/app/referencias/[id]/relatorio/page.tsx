@@ -219,6 +219,14 @@ export default async function RelatorioPage({ params }: { params: Promise<{ id: 
             <Link className="rounded border px-3 py-2 text-sm" href={`/referencias/${referenceId}`}>
               Voltar
             </Link>
+            <a
+              className="rounded border bg-white px-3 py-2 text-sm"
+              href={`/api/referencias/${referenceId}/relatorio/pdf`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Gerar PDF do cálculo
+            </a>
           </div>
         </div>
 
